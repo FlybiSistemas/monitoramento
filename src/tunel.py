@@ -4,6 +4,11 @@ import struct
 import pyautogui as pg
 
 class Tunel:
+    usuario = []
+
+    # def __init__(self, user):
+    #     self.send_message(user)
+
     def read_message(self):
         raw_length = sys.stdin.buffer.read(4)
         if not raw_length:
@@ -18,3 +23,8 @@ class Tunel:
         sys.stdout.buffer.write(encoded_length)
         sys.stdout.buffer.write(encoded_content)
         sys.stdout.buffer.flush()
+
+    def send_certificate(self, certificado):
+        data = self.usuario
+        data['certificado'] = certificado
+        self.send_message(json.dumps(data))

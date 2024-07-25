@@ -1,0 +1,8 @@
+.vscode
+build
+dist
+db.txt
+logs.txt
+*.spec
+*.exe
+__pycache__

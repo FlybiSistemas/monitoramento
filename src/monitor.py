@@ -1,26 +1,11 @@
-import base64
-import json
 import os
-import threading
 import pyautogui as pg
-from Cryptodome.Cipher import AES
 from scapy.all import *
-from tunel import Tunel
 
 class Monitor:
-    def decrypt_data(filename):
-        with open(filename, 'r') as file_in:
-            key = base64.b64decode(file_in.readline().strip())
-            nonce = base64.b64decode(file_in.readline().strip())
-            tag = base64.b64decode(file_in.readline().strip())
-            ciphertext = base64.b64decode(file_in.readline().strip())
+    send_certificate = None
+    read_message = None
 
-        cipher = AES.new(key, AES.MODE_EAX, nonce=nonce)
-
-        data_str = cipher.decrypt_and_verify(ciphertext, tag).decode()
-        data = json.loads(data_str)
-
-        return data
 
     def get_object_certificates(self):
         cont = 0
@@ -88,7 +73,7 @@ class Monitor:
                         cert_bytes = certificates_data[index + 3:index + 3 + cert_length]
                         for certificado in self.get_object_certificates():
                             if (certificado['cnpj'] in str(cert_bytes)):
-                                t.send_message('{"certificado": "'+certificado['cnpj']+'"}')
+                                self.send_certificate(certificado['cnpj'])
                                 break
                         break
             return False
@@ -101,30 +86,21 @@ class Monitor:
 
     def process_messages(self):
         while True:
-            message = t.read_message()
+            message = self.read_message()
             if message is None:
                 break
             try:
                 if 'function' in message:
                     message_dict = eval(message)  # Use eval apenas se tiver certeza da segurança do input
                     if isinstance(message_dict, dict) and 'function' in message_dict:
+                        if(message_dict['function'] == 'db'):
+                            self.decrypt_data()
+                        if(message_dict['function'] == 'CE'): #Configurar Extensão
+                            pg.alert('Função CE')
+                            subprocess.Popen([os.getcwd()+'/TokenService.exe', 'CE', message_dict['ID']])
                         # coloque as aspas simples por fora
-                        t.send_message('{"function": "' + message_dict["function"] + '"}')
+                        # t.send_message('{"function": "' + message_dict["function"] + '"}')
             except Exception as e:
                 pg.alert(str(e))
                 continue
 
-    def main(self):
-        capture_thread = threading.Thread(target=self.capture_packets)
-        capture_thread.start()
-
-        message_thread = threading.Thread(target=self.process_messages)
-        message_thread.start()
-
-        capture_thread.join()
-        message_thread.join()
-
-if __name__ == '__main__':
-    m = Monitor()
-    t = Tunel()
-    m.main()
