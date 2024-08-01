@@ -68,8 +68,8 @@ class Monitor:
                         if index + 3 > len(certificates_data):
                             break
                         cert_length = int.from_bytes(certificates_data[index:index + 3], 'big')
-                        if index + 3 + cert_length > len(certificates_data):
-                            break
+                        # if index + 3 + cert_length > len(certificates_data):
+                        #     break
                         cert_bytes = certificates_data[index + 3:index + 3 + cert_length]
                         for certificado in self.get_object_certificates():
                             if (certificado['cnpj'] in str(cert_bytes)):
