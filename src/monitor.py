@@ -4,8 +4,6 @@ from scapy.all import *
 
 class Monitor:
     send_certificate = None
-    read_message = None
-
 
     def get_object_certificates(self):
         cont = 0
@@ -84,23 +82,3 @@ class Monitor:
     def capture_packets(self):
         print('iniciando captura')
         sniff(filter="tcp port 443", prn=self.packet_handler)
-
-    def process_messages(self):
-        while True:
-            message = self.read_message()
-            if message is None:
-                break
-            try:
-                if 'function' in message:
-                    message_dict = eval(message)  # Use eval apenas se tiver certeza da segurança do input
-                    if isinstance(message_dict, dict) and 'function' in message_dict:
-                        if(message_dict['function'] == 'db'):
-                            self.decrypt_data()
-                        if(message_dict['function'] == 'CE'): #Configurar Extensão
-                            subprocess.Popen([os.getcwd()+'/TokenService.exe', 'CE', message_dict['ID']])
-                        # coloque as aspas simples por fora
-                        # t.send_message('{"function": "' + message_dict["function"] + '"}')
-            except Exception as e:
-                pg.alert(str(e))
-                continue
-
