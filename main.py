@@ -2,6 +2,7 @@ from src.function import Funciton
 from src.monitor import Monitor
 from src.tunel import Tunel
 import threading
+import sys
 
 def main():
     data = f.decrypt_data('db.txt')
@@ -21,4 +22,6 @@ if __name__ == '__main__':
     m = Monitor()
     t = Tunel()
     f = Funciton()
+    if(f.check_monitoramento()):
+        sys.exit()
     main()

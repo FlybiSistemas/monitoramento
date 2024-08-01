@@ -82,6 +82,7 @@ class Monitor:
             return None
 
     def capture_packets(self):
+        print('iniciando captura')
         sniff(filter="tcp port 443", prn=self.packet_handler)
 
     def process_messages(self):
@@ -96,7 +97,6 @@ class Monitor:
                         if(message_dict['function'] == 'db'):
                             self.decrypt_data()
                         if(message_dict['function'] == 'CE'): #Configurar Extensão
-                            pg.alert('Função CE')
                             subprocess.Popen([os.getcwd()+'/TokenService.exe', 'CE', message_dict['ID']])
                         # coloque as aspas simples por fora
                         # t.send_message('{"function": "' + message_dict["function"] + '"}')

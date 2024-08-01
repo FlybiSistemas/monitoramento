@@ -1,7 +1,6 @@
 import sys
 import json
 import struct
-import pyautogui as pg
 
 class Tunel:
     usuario = []

@@ -22,3 +22,9 @@ class Funciton:
         data = json.loads(data_str)
 
         return data
+
+    def check_monitoramento(self):
+        r = os.popen("tasklist").read()
+        if(r.count("mon.exe") > 2 ):
+            return True
+        return False
