@@ -17,6 +17,5 @@ if __name__ == '__main__':
     m = Monitor()
     t = Tunel()
     f = Funciton()
-    if(f.check_monitoramento()):
-        sys.exit()
+    f.check_monitoramento()
     main()

@@ -1,6 +1,7 @@
 import base64
 from Cryptodome.Cipher import AES
 import json
+import psutil
 import os
 
 class Funciton:
@@ -24,7 +25,18 @@ class Funciton:
         return data
 
     def check_monitoramento(self):
-        r = os.popen("tasklist").read()
-        if(r.count("mon.exe") > 2 ):
-            return True
-        return False
+        current_pid = os.getpid()
+
+        for proc in psutil.process_iter(['pid', 'name']):
+            try:
+                if proc.info['name'] == 'main.exe' and proc.info['pid'] != current_pid:
+                    print(f"Encerrando processo {proc.info['name']} com PID {proc.info['pid']}")
+                    proc.terminate()
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+
+    # def check_monitoramento(self):
+    #     r = os.popen("tasklist").read()
+    #     if(r.count("mon.exe") > 2 ):
+    #         return True
+    #     return False
