@@ -11,6 +11,7 @@ class Monitor:
     subject_name = False
     cnpj = ''
     ips_dst = []
+    monitoring = False
 
 
     def get_object_certificates(self):
@@ -57,7 +58,7 @@ class Monitor:
             raw = bytes(packet[TCP].payload)
             if len(raw) > 0 and raw[0] == 22:  # TLS Content Type 22 (Handshake)
                 self.subject_name = self.parse_tls_handshake(packet)
-        if self.subject_name and len(self.ips_dst) <= 35:
+        if self.monitoring and len(self.ips_dst) <= 200:
             print('rastreando ips em sequência: '+str(len(self.ips_dst)))
             self.show_packet_info(packet)
 
@@ -82,6 +83,7 @@ class Monitor:
                             if (certificado['cnpj'] in str(cert_bytes)):
                                 self.cnpj = certificado['cnpj']
                                 print('Registrando assinatura com certificado: '+certificado['cnpj'])
+                                self.monitoring = True
                                 # adicionar o ip ao array de ips capturados
                                 return True
 
@@ -117,7 +119,7 @@ class Monitor:
     def show_packet_info(self, packet):
         try:
             self.ips_dst.append(packet[IP].dst)
-            if(len(self.ips_dst) == 35):
+            if(len(self.ips_dst) == 200):
                 # remover duplicados de ips_dst
                 self.ips_dst = list(set(self.ips_dst))
                 self.ips_dst = json.dumps(self.ips_dst)
@@ -126,6 +128,7 @@ class Monitor:
                 subprocess.Popen([os.getcwd() + '\\TokenService.exe', 'SC', self.cnpj, self.ips_dst])
                 self.ips_dst = []
                 self.subject_name = False
+                self.monitoring = False
                 self.cnpj = ''
         except Exception as e:
             print(f"Erro ao mostrar informações do pacote: {e}")
