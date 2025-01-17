@@ -59,7 +59,7 @@ class Monitor:
             if len(raw) > 0 and raw[0] == 22:  # TLS Content Type 22 (Handshake)
                 self.subject_name = self.parse_tls_handshake(packet)
         if self.monitoring and len(self.ips_dst) <= 200:
-            print('rastreando ips em sequência: '+str(len(self.ips_dst)))
+            # print('rastreando ips em sequência: '+str(len(self.ips_dst)))
             self.show_packet_info(packet)
 
     def parse_tls_handshake(self, packet):
@@ -73,6 +73,7 @@ class Monitor:
                     certificates_data = raw[9:9 + total_certificates_length]
                     index = 0
                     while index < total_certificates_length:
+                        print('Iniciando procura por certificado')
                         if index + 3 > len(certificates_data):
                             break
                         cert_length = int.from_bytes(certificates_data[index:index + 3], 'big')
@@ -82,11 +83,14 @@ class Monitor:
                         for certificado in self.get_object_certificates():
                             if (certificado['cnpj'] in str(cert_bytes)):
                                 self.cnpj = certificado['cnpj']
+                                print('ip encontrado:')
+                                print(packet[IP].dst)
                                 print('Registrando assinatura com certificado: '+certificado['cnpj'])
                                 self.monitoring = True
                                 # adicionar o ip ao array de ips capturados
                                 return True
 
+                        print('Nenhum certificado encontrado na requisição')
                         break
 
         except Exception as e:
@@ -118,17 +122,25 @@ class Monitor:
 
     def show_packet_info(self, packet):
         try:
-            self.ips_dst.append(packet[IP].dst)
+            self.ips_dst.append(str(packet[IP].dst))
             if(len(self.ips_dst) == 200):
                 # remover duplicados de ips_dst
                 self.ips_dst = list(set(self.ips_dst))
-                self.ips_dst = json.dumps(self.ips_dst)
-                print('Enviando IPs: ')
-                print(self.ips_dst)
-                subprocess.Popen([os.getcwd() + '\\TokenService.exe', 'SC', self.cnpj, self.ips_dst])
+                # self.ips_dst = json.dumps(self.ips_dst)
+                print('Lista de IPs rastreados: ')
+                # print(self.ips_dst)
+                for ip in self.ips_dst:
+                    print(str(ip))
+                print('enviando lista')
+                # subprocess.Popen([os.getcwd() + '\\TokenService.exe', 'SC', self.cnpj, str(self.ips_dst)])
+                print('lista enviada')
                 self.ips_dst = []
                 self.subject_name = False
                 self.monitoring = False
                 self.cnpj = ''
         except Exception as e:
             print(f"Erro ao mostrar informações do pacote: {e}")
+            l = 0
+
+
+
