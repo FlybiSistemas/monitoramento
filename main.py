@@ -1,11 +1,11 @@
 import time
 import win32evtlog
 import os
-import subprocess
 import threading
 import ctypes
 import sys
 from unidecode import unidecode
+from datetime import datetime, timedelta
 
 processed_events = []
 scan = False
@@ -35,35 +35,39 @@ def read_security_log():
         
         while events:
             for event in events:
-                if event.EventID == event_id_to_watch and event.TimeGenerated not in processed_events:
+                if event.EventID == event_id_to_watch and event.TimeGenerated not in processed_events and event.StringInserts[5] != 'ECDSA_P384':
+                    print(f"Evento: {event.EventID} - {event.StringInserts}")
                     processed_events.append(event.TimeGenerated)
-                    if(scan):
+                    if(scan and 'TB_0' not in event.StringInserts[6] and 'microsoft.com' not in event.StringInserts[6]):
                         lista = get_ips()
-                        time.sleep(5)
-                        lista = get_ips(lista)
                         lista = list(set(lista))
-                        print('iniciando tokenservice ' + os.getcwd() + '\\TokenService.exe')
-                        try:
-                            subprocess.Popen([os.getcwd() + '\\TokenService.exe', 'SC', event.StringInserts[6], str(lista)])
-                        except:
-                            r = os.popen('"' + os.getcwd() + '\\TokenService.exe SC ' + event.StringInserts[6] + ' ' + str(lista)).read()
-                        with open('C:\\monitoramento.txt', 'a') as f:
-                            f.write(f"{r}\n")
-                            f.write(f"{event.TimeGenerated}\n")
-                            f.write('ips usados\n')
-                            f.write(f"{lista}\n")
-                            f.write('========================\n')
-                            f.write('certificado\n')
-                            f.write(f"{event.StringInserts[6]}\n")
-                            f.write('========================\n')
-                        print(r)
-                        print(event.TimeGenerated)
-                        print('ips usados\n')
-                        print(lista)
-                        print('========================\n')
-                        print('certificado\n')
-                        print(event.StringInserts[6])
-                        print('========================\n')
+                        log_entry = {
+                            "certificado": event.StringInserts[6],
+                            "ips_usados": lista,
+                            "horario": event.TimeGenerated.strftime("%Y-%m-%d %H:%M:%S"),
+                            "usuario": event.StringInserts[1]
+                        }
+                        print('Certificado: ', log_entry['certificado'])
+                        print('Horário: ', log_entry['horario'])
+                        print(event.StringInserts)
+                        users_folder = 'C:\\Users'
+                        for user in os.listdir(users_folder):
+                            user_path = os.path.join(users_folder, user)
+                            if os.path.isdir(user_path):
+                                bytoken_folder = os.path.join(user_path, 'arquivos_bytoken')
+                                if os.path.exists(bytoken_folder):
+                                    logs_folder = os.path.join(bytoken_folder, 'log')
+                                    os.makedirs(logs_folder, exist_ok=True)
+                                    log_file = os.path.join(logs_folder, 'monitoramento.txt')
+                                    
+                                    with open(log_file, 'a') as f:
+                                        f.write(f"{log_entry}\n")
+                                        
+                        r = os.popen('schtasks /run /tn "monitor_sc"').read() # Enviar informação capturada
+                        print('Retorno:', r)
+                        time.sleep(10)
+                        r = os.popen('wevtutil cl Security').read() # Limpar registros capturados
+                        print('Retorno:', r)
 
             events = win32evtlog.ReadEventLog(handle, win32evtlog.EVENTLOG_FORWARDS_READ | win32evtlog.EVENTLOG_SEQUENTIAL_READ, 0)
         
@@ -106,6 +110,10 @@ def create_schedule(tarefa, tipo, tempo, exe, admin=False):
         comando = f'schtasks /create /sc minute /mo {tempo} /tn "{tarefa}" /tr "\'{exe}\'"{admin_flag} /ru "SYSTEM" /np /f' 
     elif tipo == 4:
         comando = f'schtasks /create /sc onlogon /tn "{tarefa}" /tr "\'{exe}\'"{admin_flag} /ru "SYSTEM" /np /f'
+    elif tipo == 5:
+        start_time = (datetime.now() - timedelta(hours=1)).strftime('%H:%M')
+        comando = f'schtasks /create /tn "{tarefa}" /tr "\'{exe}\' uninstall" /sc once /st {start_time}{admin_flag} /ru "SYSTEM" /np /f'
+        a = os.popen(comando).read()
     print('Comando:', comando)
     r = os.popen(comando).read()
     print('Retorno:', r)
@@ -123,6 +131,12 @@ def check_monitor():
     if(r.count("bytokenmonitor.exe") > 2 or r.count("ByTokenMonitor.exe") > 2):
         return True
     return False
+
+def delete_schedule(tarefa):
+    tarefa = unidecode(tarefa).lower()
+    r = os.popen(f'schtasks /delete /tn "{tarefa}" /f').read()
+    print('Retorno:', r)
+    return True
 
 def get_user():
     try:
@@ -146,21 +160,20 @@ def get_user():
 usuario = get_user()
 
 if __name__ == '__main__':
-    if(check_monitor()):
-        sys.exit()
     if not run_as_admin():
         # Se o script não for executado como admin, só executa a parte não privilegiada
         print("Este script requer privilégios de administrador para funcionar corretamente.")
         sys.exit(0)  # Encerra o programa se não tiver permissões elevadas
     if 'install' in sys.argv:
+        # retorno = create_schedule("tokenuninstall", 5, 20, 'C:/Program Files/ByToken/TokenService.exe')
         if not check_schedule("TokenMonitor"):
             retorno = create_schedule("TokenMonitor", 3, 2, 'C:/Program Files/ByToken/ByTokenMonitor.exe', True)
             if type(retorno) == list:
                 sys.exit()
-        if not check_schedule("LogonMonitor"):
-            retorno = create_schedule("LogonMonitor", 4, 2, 'C:/Program Files/ByToken/ByTokenMonitor.exe', True)
-            if type(retorno) == list:
-                sys.exit()
+        sys.exit()
+    if 'uninstall' in sys.argv:
+        delete_schedule("tokenmonitor")
+        delete_schedule("monitor_sc")
         sys.exit()
     # Cria a thread para iniciar a verificação após um delay
     scan_thread = threading.Thread(target=start_scan_after_delay)
